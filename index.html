@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسجيل الدخول برقم الهاتف - المدرسة الإلكترونية</title>
-    <!-- استيراد Firebase SDK (الإصدار 9+) -->
+    <!-- استيراد Firebase SDK (الإصدار 10.8.0) -->
     <script type="module">
-        // استيراد الوحدات المطلوبة من Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
         import { 
@@ -47,7 +46,6 @@
         window.recaptchaVerifier = new RecaptchaVerifier(auth, 'sendCode', {
             'size': 'invisible',
             'callback': (response) => {
-                // إعادةCaptcha تم حلها، يمكن متابعة إرسال الرمز
                 console.log('reCAPTCHA solved');
             }
         });
@@ -59,33 +57,68 @@
             messageDiv.style.display = 'block';
         }
 
+        // دالة لتنظيف رقم الهاتف وإضافة رمز البلد (+964 للعراق)
+        function formatPhoneNumber(input) {
+            // إزالة كل شيء ما عدا الأرقام
+            let digits = input.replace(/\D/g, '');
+            
+            // إذا كان الرقم فارغاً
+            if (!digits) return '';
+            
+            // إذا كان الرقم يبدأ بـ 964 (بدون +) نتركه لكن نضيف +
+            if (digits.startsWith('964')) {
+                return '+' + digits; // يصبح +964......
+            }
+            
+            // إذا كان الرقم يبدأ بصفر (مثل 078...)، نحذف الصفر الأول ونضيف +964
+            if (digits.startsWith('0')) {
+                return '+964' + digits.substring(1); // مثلاً 078... → +96478...
+            }
+            
+            // إذا كان الرقم لا يبدأ بصفر ولا بـ964، نفترض أنه مكون من 10 أرقام (بدون مفتاح) ونضيف +964
+            // هذا افتراضي، قد يحتاج تعديل حسب البلد
+            return '+964' + digits;
+        }
+
         // إرسال رمز التحقق
         sendCodeBtn.addEventListener('click', async () => {
-            const phoneNumber = phoneInput.value.trim();
-            if (!phoneNumber) {
+            const rawPhone = phoneInput.value.trim();
+            if (!rawPhone) {
                 showMessage('الرجاء إدخال رقم الهاتف');
+                return;
+            }
+
+            // تنسيق الرقم تلقائياً
+            const formattedPhone = formatPhoneNumber(rawPhone);
+            
+            // التحقق من صحة التنسيق (يجب أن يبدأ بـ +964)
+            if (!formattedPhone.startsWith('+964')) {
+                showMessage('رقم الهاتف غير صحيح للعراق. تأكد من إدخال الرقم بشكل صحيح');
                 return;
             }
 
             // تعطيل الزر مؤقتاً
             sendCodeBtn.disabled = true;
-            showMessage('جاري إرسال الرمز...', false);
+            showMessage('جاري إرسال الرمز إلى ' + formattedPhone + '...', false);
 
             try {
-                confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
-                // إخفاء رسالة النجاح وإظهار حقل الرمز
+                confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, window.recaptchaVerifier);
                 showMessage('تم إرسال الرمز بنجاح. الرجاء إدخاله', false);
                 verificationSection.style.display = 'block';
-                sendCodeBtn.style.display = 'none'; // إخفاء زر الإرسال
-                phoneInput.disabled = true; // تعطيل تعديل الرقم
+                sendCodeBtn.style.display = 'none';
+                phoneInput.disabled = true;
             } catch (error) {
                 console.error('خطأ في إرسال الرمز:', error);
                 showMessage('فشل إرسال الرمز: ' + error.message);
                 sendCodeBtn.disabled = false;
                 // إعادة تعيين reCAPTCHA إذا فشلت
-                window.recaptchaVerifier.render().then((widgetId) => {
-                    window.recaptchaVerifier.reset();
-                });
+                try {
+                    window.recaptchaVerifier.render().then((widgetId) => {
+                        window.recaptchaVerifier.reset();
+                    });
+                } catch (e) {
+                    console.log('خطأ في إعادة تعيين reCAPTCHA', e);
+                }
             }
         });
 
@@ -106,10 +139,9 @@
                 const user = result.user;
                 showMessage('تم تسجيل الدخول بنجاح! جاري التحويل...', false);
                 
-                // تأخير بسيط ثم التوجيه إلى الصفحة التالية
+                // تأخير ثم التوجيه إلى الصفحة التالية
                 setTimeout(() => {
-                    // يمكن تغيير الرابط إلى الصفحة التي تريدها
-                    window.location.href = 'dashboard.html'; 
+                    window.location.href = 'dashboard.html'; // غير الرابط حسب حاجتك
                 }, 2000);
             } catch (error) {
                 console.error('خطأ في التحقق:', error);
@@ -207,8 +239,8 @@
     <div class="container">
         <h2>📱 تسجيل الدخول إلى المدرسة الإلكترونية</h2>
         
-        <!-- حقل إدخال رقم الهاتف -->
-        <input type="tel" id="phone" placeholder="رقم الهاتف (مثال: +9665xxxxxxxx)" dir="ltr" style="text-align: left;">
+        <!-- حقل إدخال رقم الهاتف (يدخل المستخدم الرقم بدون +) -->
+        <input type="tel" id="phone" placeholder="أدخل رقم هاتفك (مثال: 07876459282)" dir="ltr" style="text-align: left;">
         
         <!-- زر إرسال الرمز -->
         <button id="sendCode">إرسال رمز التحقق</button>
