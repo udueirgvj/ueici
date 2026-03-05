@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول برقم الهاتف - المدرسة الإلكترونية</title>
+    <!-- استيراد Firebase SDK (الإصدار 9+) -->
+    <script type="module">
+        // استيراد الوحدات المطلوبة من Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        import { 
+            getAuth, 
+            signInWithPhoneNumber, 
+            RecaptchaVerifier 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // إعدادات Firebase الخاصة بك
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYnCu8VkoOAOhnJTZBVmSGcPSeKB4vCAM",
+            authDomain: "tygggfs.firebaseapp.com",
+            databaseURL: "https://tygggfs-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "tygggfs",
+            storageBucket: "tygggfs.firebasestorage.app",
+            messagingSenderId: "532770652661",
+            appId: "1:532770652661:web:855dadb2b6bfd5f5cf60bc",
+            measurementId: "G-04LYXS03YS"
+        };
+
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+
+        // متغير لتخزين معرف التحقق
+        let confirmationResult;
+
+        // عناصر الصفحة
+        const phoneInput = document.getElementById('phone');
+        const sendCodeBtn = document.getElementById('sendCode');
+        const verificationSection = document.getElementById('verificationSection');
+        const codeInput = document.getElementById('code');
+        const verifyBtn = document.getElementById('verify');
+        const messageDiv = document.getElementById('message');
+
+        // تهيئة reCAPTCHA
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'sendCode', {
+            'size': 'invisible',
+            'callback': (response) => {
+                // إعادةCaptcha تم حلها، يمكن متابعة إرسال الرمز
+                console.log('reCAPTCHA solved');
+            }
+        });
+
+        // دالة لعرض الرسائل
+        function showMessage(text, isError = true) {
+            messageDiv.textContent = text;
+            messageDiv.style.color = isError ? '#dc3545' : '#28a745';
+            messageDiv.style.display = 'block';
+        }
+
+        // إرسال رمز التحقق
+        sendCodeBtn.addEventListener('click', async () => {
+            const phoneNumber = phoneInput.value.trim();
+            if (!phoneNumber) {
+                showMessage('الرجاء إدخال رقم الهاتف');
+                return;
+            }
+
+            // تعطيل الزر مؤقتاً
+            sendCodeBtn.disabled = true;
+            showMessage('جاري إرسال الرمز...', false);
+
+            try {
+                confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
+                // إخفاء رسالة النجاح وإظهار حقل الرمز
+                showMessage('تم إرسال الرمز بنجاح. الرجاء إدخاله', false);
+                verificationSection.style.display = 'block';
+                sendCodeBtn.style.display = 'none'; // إخفاء زر الإرسال
+                phoneInput.disabled = true; // تعطيل تعديل الرقم
+            } catch (error) {
+                console.error('خطأ في إرسال الرمز:', error);
+                showMessage('فشل إرسال الرمز: ' + error.message);
+                sendCodeBtn.disabled = false;
+                // إعادة تعيين reCAPTCHA إذا فشلت
+                window.recaptchaVerifier.render().then((widgetId) => {
+                    window.recaptchaVerifier.reset();
+                });
+            }
+        });
+
+        // التحقق من الرمز
+        verifyBtn.addEventListener('click', async () => {
+            const code = codeInput.value.trim();
+            if (!code) {
+                showMessage('الرجاء إدخال رمز التحقق');
+                return;
+            }
+
+            verifyBtn.disabled = true;
+            showMessage('جاري التحقق...', false);
+
+            try {
+                const result = await confirmationResult.confirm(code);
+                // نجاح تسجيل الدخول
+                const user = result.user;
+                showMessage('تم تسجيل الدخول بنجاح! جاري التحويل...', false);
+                
+                // تأخير بسيط ثم التوجيه إلى الصفحة التالية
+                setTimeout(() => {
+                    // يمكن تغيير الرابط إلى الصفحة التي تريدها
+                    window.location.href = 'dashboard.html'; 
+                }, 2000);
+            } catch (error) {
+                console.error('خطأ في التحقق:', error);
+                showMessage('رمز التحقق غير صحيح أو انتهت صلاحيته');
+                verifyBtn.disabled = false;
+            }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            direction: rtl;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 8px 0 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            width: 100%;
+            margin: 5px 0;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        button:disabled {
+            background: #b3b3b3;
+            cursor: not-allowed;
+        }
+        #verificationSection {
+            display: none;
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        #message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            font-size: 14px;
+        }
+        .note {
+            font-size: 12px;
+            color: #666;
+            margin-top: 15px;
+        }
+        .note a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>📱 تسجيل الدخول إلى المدرسة الإلكترونية</h2>
+        
+        <!-- حقل إدخال رقم الهاتف -->
+        <input type="tel" id="phone" placeholder="رقم الهاتف (مثال: +9665xxxxxxxx)" dir="ltr" style="text-align: left;">
+        
+        <!-- زر إرسال الرمز -->
+        <button id="sendCode">إرسال رمز التحقق</button>
+
+        <!-- قسم إدخال رمز التحقق (يظهر بعد إرسال الرمز) -->
+        <div id="verificationSection">
+            <input type="text" id="code" placeholder="أدخل رمز التحقق" dir="ltr" style="text-align: left;">
+            <button id="verify">تأكيد الرمز</button>
+        </div>
+
+        <!-- عرض الرسائل -->
+        <div id="message"></div>
+
+        <div class="note">
+            🔒 سيتم إرسال رمز عبر SMS للتحقق من رقمك.
+        </div>
+    </div>
+</body>
+</html>
