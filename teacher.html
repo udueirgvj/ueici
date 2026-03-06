@@ -1,1 +1,384 @@
-مذرس
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحة المدرس - المدرسة الإلكترونية</title>
+    <!-- استيراد Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, query, orderByChild, equalTo, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // إعدادات Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYnCu8VkoOAOhnJTZBVmSGcPSeKB4vCAM",
+            authDomain: "tygggfs.firebaseapp.com",
+            databaseURL: "https://tygggfs-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "tygggfs",
+            storageBucket: "tygggfs.firebasestorage.app",
+            messagingSenderId: "532770652661",
+            appId: "1:532770652661:web:855dadb2b6bfd5f5cf60bc",
+            measurementId: "G-04LYXS03YS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // عناصر الصفحة
+        const searchSection = document.getElementById('searchSection');
+        const searchInput = document.getElementById('schoolUsername');
+        const searchBtn = document.getElementById('searchBtn');
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const createBtn = document.getElementById('createBtn');
+        const showSearchBtn = document.getElementById('showSearchBtn');
+
+        // إظهار حقل البحث عند الضغط على "بحث عن مدرسة"
+        showSearchBtn.addEventListener('click', () => {
+            searchSection.style.display = 'block';
+            showSearchBtn.style.display = 'none'; // نخفي زر البحث بعد ظهور الحقل (اختياري)
+            createBtn.style.display = 'none'; // نخفي زر الإنشاء أيضاً لتبسيط الواجهة
+            // يمكن إبقائهما ولكن الأفضل تركيز الانتباه
+        });
+
+        // دالة البحث (مشابهة لصفحة الطالب)
+        async function searchSchool() {
+            const username = searchInput.value.trim();
+            if (!username) {
+                showError('الرجاء إدخال اسم المستخدم');
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+            searchBtn.disabled = true;
+
+            try {
+                const schoolsRef = ref(database, 'schools');
+                const schoolQuery = query(schoolsRef, orderByChild('username'), equalTo(username));
+                const snapshot = await get(schoolQuery);
+
+                loadingDiv.style.display = 'none';
+                searchBtn.disabled = false;
+
+                if (snapshot.exists()) {
+                    let schoolData = null;
+                    let schoolId = null;
+                    snapshot.forEach(childSnapshot => {
+                        if (!schoolData) {
+                            schoolData = childSnapshot.val();
+                            schoolId = childSnapshot.key;
+                        }
+                    });
+                    displayResults(schoolData, schoolId);
+                } else {
+                    showError('لم يتم العثور على مدرسة بهذا الاسم');
+                }
+            } catch (err) {
+                console.error('خطأ في البحث:', err);
+                loadingDiv.style.display = 'none';
+                searchBtn.disabled = false;
+                showError('حدث خطأ أثناء البحث. الرجاء المحاولة لاحقاً.');
+            }
+        }
+
+        function displayResults(school, id) {
+            resultsDiv.innerHTML = `
+                <div class="school-card">
+                    <h3>${school.name || 'مدرسة بدون اسم'}</h3>
+                    <p><strong>اسم المستخدم:</strong> ${school.username || id}</p>
+                    <p><strong>المرحلة:</strong> ${school.level || 'غير محدد'}</p>
+                    <p><strong>العنوان:</strong> ${school.address || 'غير محدد'}</p>
+                    <p><strong>المدير:</strong> ${school.principal || 'غير محدد'}</p>
+                    <button class="join-btn" onclick="window.location.href='supervisor.html?school=${id}'">دخول كمشرف</button>
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+        }
+
+        function showError(msg) {
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        searchBtn.addEventListener('click', searchSchool);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchSchool();
+        });
+
+        // زر إنشاء مدرسة -> تحويل إلى صفحة جديدة
+        createBtn.addEventListener('click', () => {
+            window.location.href = 'create_school.html';
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #e8f0fe 0%, #d9e9fa 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            direction: rtl;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            box-shadow: 0 20px 60px rgba(25, 90, 120, 0.25);
+            padding: 50px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+        }
+        h1 {
+            color: #0b3b4f;
+            font-size: 2.2rem;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 3px solid #ffb74d;
+            padding-bottom: 15px;
+        }
+        .welcome-message {
+            background: #cbe9fa;
+            padding: 20px 25px;
+            border-radius: 40px;
+            margin-bottom: 35px;
+            color: #024d6e;
+            font-size: 1.2rem;
+            border-right: 8px solid #0284c7;
+            box-shadow: 0 8px 18px rgba(2, 132, 199, 0.1);
+        }
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .primary-btn {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 60px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 20px rgba(2, 132, 199, 0.3);
+            flex: 1 1 auto;
+            min-width: 200px;
+            justify-content: center;
+        }
+        .primary-btn:hover {
+            background: #0369a1;
+            transform: scale(1.02);
+        }
+        .secondary-btn {
+            background: #ffb74d;
+            color: #024d6e;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 60px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 20px rgba(255, 183, 77, 0.3);
+            flex: 1 1 auto;
+            min-width: 200px;
+            justify-content: center;
+        }
+        .secondary-btn:hover {
+            background: #ffa726;
+            transform: scale(1.02);
+        }
+        #searchSection {
+            display: none;
+            margin-top: 30px;
+            background: #f3fbff;
+            border-radius: 40px;
+            padding: 30px 25px;
+            box-shadow: inset 0 0 0 2px white, 0 10px 20px rgba(0,0,0,0.05);
+        }
+        .search-box {
+            background: white;
+            border-radius: 60px;
+            padding: 5px 5px 5px 20px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(2, 132, 199, 0.2);
+            border: 2px solid white;
+            transition: all 0.3s;
+        }
+        .search-box:focus-within {
+            border-color: #0284c7;
+        }
+        .search-box input {
+            flex: 1;
+            border: none;
+            padding: 15px 10px;
+            font-size: 1.1rem;
+            background: transparent;
+            outline: none;
+            color: #024d6e;
+        }
+        .search-box input::placeholder {
+            color: #9cc9e5;
+        }
+        .search-box button {
+            background: #0284c7;
+            border: none;
+            color: white;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 1.4rem;
+        }
+        .search-box button:hover {
+            background: #0369a1;
+        }
+        .search-box button:disabled {
+            background: #b0d0e5;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin: 25px 0;
+            color: #0284c7;
+        }
+        .spinner {
+            width: 45px;
+            height: 45px;
+            border: 5px solid #cde8ff;
+            border-top-color: #0284c7;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #error {
+            display: none;
+            background: #ffddda;
+            color: #b34141;
+            padding: 15px 20px;
+            border-radius: 40px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 600;
+            border-right: 8px solid #b34141;
+        }
+        #results {
+            display: none;
+            margin-top: 25px;
+        }
+        .school-card {
+            background: white;
+            border-radius: 35px;
+            padding: 25px;
+            box-shadow: 0 15px 25px rgba(2, 132, 199, 0.1);
+            border: 2px solid #b8e0ff;
+        }
+        .school-card h3 {
+            color: #024d6e;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            border-bottom: 3px solid #ffb74d;
+            padding-bottom: 8px;
+        }
+        .school-card p {
+            margin: 12px 0;
+            color: #1f4a64;
+            font-size: 1.1rem;
+        }
+        .school-card p strong {
+            min-width: 110px;
+            display: inline-block;
+            color: #024d6e;
+        }
+        .join-btn {
+            background: #ffb74d;
+            color: #024d6e;
+            border: none;
+            padding: 14px 25px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.2s;
+            border: 2px solid #ffa726;
+        }
+        .join-btn:hover {
+            background: #ffa726;
+        }
+        .footer-note {
+            margin-top: 40px;
+            color: #6096a0;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+        .footer-note i {
+            color: #ffb74d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👨‍🏫 مرحباً بك عزيزي المدرس</h1>
+        
+        <div class="welcome-message">
+            يمكنك البحث عن مدرستك للدخول كمشرف (بعد رفعك من مدير المدرسة) أو إنشاء مدرسة جديدة.
+        </div>
+
+        <!-- أزرار الإجراءات الرئيسية -->
+        <div class="action-buttons">
+            <button class="primary-btn" id="showSearchBtn">🔍 بحث عن مدرسة</button>
+            <button class="secondary-btn" id="createBtn">➕ إنشاء مدرسة</button>
+        </div>
+
+        <!-- قسم البحث (يظهر عند الضغط على زر بحث) -->
+        <div id="searchSection">
+            <div class="search-box">
+                <input type="text" id="schoolUsername" placeholder="أدخل اسم المستخدم الخاص بالمدرسة">
+                <button id="searchBtn">🔍</button>
+            </div>
+
+            <div id="loading">
+                <div class="spinner"></div>
+                <p>جاري البحث...</p>
+            </div>
+
+            <div id="error"></div>
+            <div id="results"></div>
+        </div>
+
+        <div class="footer-note">
+            <i>✨</i> إذا لم تجد مدرستك، يمكنك التواصل مع المدير أو إنشاء مدرسة جديدة.
+        </div>
+    </div>
+</body>
+</html>
