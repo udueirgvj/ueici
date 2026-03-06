@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إنشاء مدرسة جديدة - المدرسة الإلكترونية</title>
-    <!-- استيراد Firebase SDK (الإصدار 10.8.0) -->
+    <!-- استيراد Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, query, orderByChild, equalTo, get, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -29,38 +29,76 @@
         // عناصر النموذج
         const schoolNameInput = document.getElementById('schoolName');
         const usernameInput = document.getElementById('username');
+        const usernameStatus = document.getElementById('usernameStatus');
         const schoolImageInput = document.getElementById('schoolImage');
         const schoolTypeRadios = document.querySelectorAll('input[name="schoolType"]');
         const createBtn = document.getElementById('createBtn');
         const loadingDiv = document.getElementById('loading');
         const messageDiv = document.getElementById('message');
 
+        let usernameAvailable = false;
+        let usernameCheckTimeout;
+
         // دالة عرض الرسائل
         function showMessage(text, isError = true) {
             messageDiv.textContent = text;
+            messageDiv.style.display = 'block';
             messageDiv.style.color = isError ? '#b34141' : '#0284c7';
             messageDiv.style.backgroundColor = isError ? '#ffddda' : '#e3f2fd';
-            messageDiv.style.display = 'block';
-            messageDiv.style.padding = '15px';
-            messageDiv.style.borderRadius = '40px';
-            messageDiv.style.marginTop = '20px';
             messageDiv.style.borderRight = isError ? '8px solid #b34141' : '8px solid #0284c7';
         }
 
-        // دالة التحقق من اسم المستخدم
+        // دالة التحقق من صحة اسم المستخدم
         function validateUsername(username) {
-            // يجب أن يكون بالإنكليزي (حروف وأرقام فقط) ولا يبدأ برقم، وألا يقل عن 7 أحرف
-            const regex = /^[A-Za-z][A-Za-z0-9]{6,}$/; // أول حرف حرف، ثم 6 أحرف أو أرقام على الأقل
+            const regex = /^[A-Za-z][A-Za-z0-9]{6,}$/;
             return regex.test(username);
         }
 
-        // دالة التحقق من وجود اسم المستخدم مسبقاً
-        async function isUsernameTaken(username) {
-            const schoolsRef = ref(database, 'schools');
-            const usernameQuery = query(schoolsRef, orderByChild('username'), equalTo(username));
-            const snapshot = await get(usernameQuery);
-            return snapshot.exists();
+        // دالة التحقق من توفر اسم المستخدم (استعلام Firebase)
+        async function checkUsernameAvailability(username) {
+            if (!validateUsername(username)) {
+                usernameStatus.textContent = 'اسم المستخدم يجب أن يبدأ بحرف ويتكون من 7 أحرف أو أكثر (أحرف إنجليزية وأرقام فقط)';
+                usernameStatus.style.color = '#b34141';
+                usernameAvailable = false;
+                return;
+            }
+
+            try {
+                const schoolsRef = ref(database, 'schools');
+                const usernameQuery = query(schoolsRef, orderByChild('username'), equalTo(username));
+                const snapshot = await get(usernameQuery);
+
+                if (snapshot.exists()) {
+                    usernameStatus.textContent = '❌ اسم المستخدم موجود مسبقاً، اختر اسماً آخر';
+                    usernameStatus.style.color = '#b34141';
+                    usernameAvailable = false;
+                } else {
+                    usernameStatus.textContent = '✓ اسم المستخدم متاح';
+                    usernameStatus.style.color = '#2a9d8f';
+                    usernameAvailable = true;
+                }
+            } catch (error) {
+                console.error('خطأ في التحقق:', error);
+                usernameStatus.textContent = 'حدث خطأ أثناء التحقق، حاول مرة أخرى';
+                usernameStatus.style.color = '#b34141';
+                usernameAvailable = false;
+            }
         }
+
+        // مراقبة حقل اسم المستخدم مع تأخير (debounce)
+        usernameInput.addEventListener('input', () => {
+            clearTimeout(usernameCheckTimeout);
+            const username = usernameInput.value.trim();
+            if (username === '') {
+                usernameStatus.textContent = '';
+                usernameAvailable = false;
+                return;
+            }
+            // تأخير 500ms بعد التوقف عن الكتابة
+            usernameCheckTimeout = setTimeout(() => {
+                checkUsernameAvailability(username);
+            }, 500);
+        });
 
         // رفع الصورة إلى Firebase Storage
         async function uploadImage(file) {
@@ -85,7 +123,7 @@
                 }
             }
 
-            // التحقق من المدخلات
+            // التحقق من المدخلات الأساسية
             if (!schoolName) {
                 showMessage('الرجاء إدخال اسم المدرسة');
                 return;
@@ -95,7 +133,11 @@
                 return;
             }
             if (!validateUsername(username)) {
-                showMessage('اسم المستخدم يجب أن يكون باللغة الإنجليزية، ويبدأ بحرف، وألا يقل عن 7 أحرف (أحرف وأرقام فقط)');
+                showMessage('اسم المستخدم غير صالح، يجب أن يبدأ بحرف ويتكون من 7 أحرف أو أكثر (أحرف إنجليزية وأرقام فقط)');
+                return;
+            }
+            if (!usernameAvailable) {
+                showMessage('اسم المستخدم غير متاح أو لم يتم التحقق منه بعد');
                 return;
             }
             if (!schoolType) {
@@ -109,23 +151,14 @@
             messageDiv.style.display = 'none';
 
             try {
-                // التحقق من أن اسم المستخدم غير مستخدم
-                const taken = await isUsernameTaken(username);
-                if (taken) {
-                    showMessage('اسم المستخدم موجود مسبقاً، الرجاء اختيار اسم آخر');
-                    createBtn.disabled = false;
-                    loadingDiv.style.display = 'none';
-                    return;
-                }
-
                 // رفع الصورة إذا وجدت
                 let imageUrl = null;
                 if (imageFile) {
                     try {
                         imageUrl = await uploadImage(imageFile);
                     } catch (uploadErr) {
-                        console.error('خطأ في رفع الصورة:', uploadErr);
-                        showMessage('فشل رفع الصورة، الرجاء المحاولة مرة أخرى');
+                        console.error('خطأ رفع الصورة:', uploadErr);
+                        showMessage('فشل رفع الصورة، تأكد من حجمها أو حاول مرة أخرى');
                         createBtn.disabled = false;
                         loadingDiv.style.display = 'none';
                         return;
@@ -134,7 +167,7 @@
 
                 // إنشاء معرف فريد للمدرسة
                 const schoolsRef = ref(database, 'schools');
-                const newSchoolRef = push(schoolsRef); // ينشئ مفتاحاً فريداً
+                const newSchoolRef = push(schoolsRef);
 
                 // بيانات المدرسة
                 const schoolData = {
@@ -143,7 +176,6 @@
                     type: schoolType,
                     imageUrl: imageUrl || '',
                     createdAt: new Date().toISOString(),
-                    // يمكن إضافة حقول أخرى لاحقاً
                 };
 
                 // حفظ البيانات في المسار الجديد
@@ -153,7 +185,7 @@
                 loadingDiv.style.display = 'none';
 
                 // عرض رسالة نجاح وتحويل
-                showMessage('تم إنشاء المدرسة بنجاح! جاري التحويل...', false);
+                showMessage('✅ تم إنشاء المدرسة بنجاح! جاري التحويل...', false);
 
                 // التحويل إلى صفحة النجاح مع معرف المدرسة
                 setTimeout(() => {
@@ -161,8 +193,8 @@
                 }, 2000);
 
             } catch (error) {
-                console.error('خطأ في إنشاء المدرسة:', error);
-                showMessage('حدث خطأ أثناء إنشاء المدرسة. الرجاء المحاولة لاحقاً.');
+                console.error('❌ خطأ في إنشاء المدرسة:', error);
+                showMessage('حدث خطأ أثناء إنشاء المدرسة: ' + (error.message || 'خطأ غير معروف'));
                 createBtn.disabled = false;
                 loadingDiv.style.display = 'none';
             }
@@ -309,6 +341,16 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         #message {
             display: none;
+            padding: 15px;
+            border-radius: 40px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        #usernameStatus {
+            font-size: 0.9rem;
+            margin-top: 5px;
+            margin-right: 10px;
         }
         .note {
             background: #fef9e6;
@@ -341,6 +383,7 @@
         <div class="form-group">
             <label>اسم المستخدم الخاص بالمدرسة</label>
             <input type="text" id="username" placeholder="مثال: alnoor_school" dir="ltr">
+            <div id="usernameStatus"></div>
             <div class="note" style="margin-top: 10px;">
                 <i>🔤</i> يجب أن يكون باللغة الإنجليزية، يبدأ بحرف، وألا يقل عن 7 أحرف (أحرف وأرقام فقط).
             </div>
