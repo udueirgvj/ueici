@@ -32,6 +32,7 @@
         const usernameStatus = document.getElementById('usernameStatus');
         const schoolImageInput = document.getElementById('schoolImage');
         const schoolTypeRadios = document.querySelectorAll('input[name="schoolType"]');
+        const principalInput = document.getElementById('principalName'); // حقل جديد
         const createBtn = document.getElementById('createBtn');
         const loadingDiv = document.getElementById('loading');
         const messageDiv = document.getElementById('message');
@@ -122,6 +123,7 @@
                     break;
                 }
             }
+            const principalName = principalInput.value.trim(); // قراءة اسم المدير
 
             // التحقق من المدخلات الأساسية
             if (!schoolName) {
@@ -142,6 +144,10 @@
             }
             if (!schoolType) {
                 showMessage('الرجاء اختيار نوع المدرسة');
+                return;
+            }
+            if (!principalName) {
+                showMessage('الرجاء إدخال اسم مدير المدرسة');
                 return;
             }
 
@@ -169,11 +175,12 @@
                 const schoolsRef = ref(database, 'schools');
                 const newSchoolRef = push(schoolsRef);
 
-                // بيانات المدرسة
+                // بيانات المدرسة (مع إضافة اسم المدير)
                 const schoolData = {
                     name: schoolName,
                     username: username,
                     type: schoolType,
+                    principal: principalName, // حفظ اسم المدير
                     imageUrl: imageUrl || '',
                     createdAt: new Date().toISOString(),
                 };
@@ -387,6 +394,12 @@
             <div class="note" style="margin-top: 10px;">
                 <i>🔤</i> يجب أن يكون باللغة الإنجليزية، يبدأ بحرف، وألا يقل عن 7 أحرف (أحرف وأرقام فقط).
             </div>
+        </div>
+
+        <!-- حقل جديد: اسم مدير المدرسة -->
+        <div class="form-group">
+            <label>اسم مدير المدرسة</label>
+            <input type="text" id="principalName" placeholder="مثال: أ. أحمد حسن">
         </div>
 
         <div class="form-group">
