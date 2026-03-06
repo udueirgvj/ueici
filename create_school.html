@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -46,6 +47,13 @@
             messageDiv.style.color = isError ? '#b34141' : '#0284c7';
             messageDiv.style.backgroundColor = isError ? '#ffddda' : '#e3f2fd';
             messageDiv.style.borderRight = isError ? '8px solid #b34141' : '8px solid #0284c7';
+            
+            // إخفاء الرسالة تلقائياً بعد 5 ثوانٍ إذا كانت رسالة نجاح
+            if (!isError) {
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 5000);
+            }
         }
 
         // دالة التحقق من صحة اسم المستخدم
@@ -107,6 +115,17 @@
             const snapshot = await uploadBytes(fileRef, file);
             const downloadUrl = await getDownloadURL(snapshot.ref);
             return downloadUrl;
+        }
+
+        // دالة لإعادة تعيين النموذج (اختياري)
+        function resetForm() {
+            schoolNameInput.value = '';
+            usernameInput.value = '';
+            usernameStatus.textContent = '';
+            schoolImageInput.value = '';
+            // إلغاء تحديد الراديو
+            schoolTypeRadios.forEach(radio => radio.checked = false);
+            usernameAvailable = false;
         }
 
         // حدث إنشاء المدرسة
@@ -184,13 +203,14 @@
                 // إخفاء التحميل
                 loadingDiv.style.display = 'none';
 
-                // عرض رسالة نجاح وتحويل
-                showMessage('✅ تم إنشاء المدرسة بنجاح! جاري التحويل...', false);
+                // عرض رسالة نجاح (بدون تحويل)
+                showMessage(`✅ تم إنشاء المدرسة بنجاح! معرف المدرسة: ${newSchoolRef.key}`, false);
 
-                // التحويل إلى صفحة النجاح مع معرف المدرسة
-                setTimeout(() => {
-                    window.location.href = `school_created.html?id=${newSchoolRef.key}`;
-                }, 2000);
+                // إعادة تعيين النموذج (اختياري، يمكنك إلغاء التعليق إذا أردت)
+                // resetForm();
+
+                // إعادة تمكين الزر
+                createBtn.disabled = false;
 
             } catch (error) {
                 console.error('❌ خطأ في إنشاء المدرسة:', error);
