@@ -1,1 +1,85 @@
-مرحبا
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختيار الدور - المدرسة الإلكترونية</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            direction: rtl;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .option-btn {
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+        .option-btn:hover {
+            background: #e0e0e0;
+            transform: scale(1.02);
+        }
+        .option-btn.student {
+            border-right: 5px solid #28a745;
+        }
+        .option-btn.teacher {
+            border-right: 5px solid #ffc107;
+        }
+        .option-btn.professor {
+            border-right: 5px solid #dc3545;
+        }
+        .note {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>👤 من أنت؟</h2>
+        <div class="options">
+            <a href="student.html" class="option-btn student">📝 طالب</a>
+            <a href="teacher.html" class="option-btn teacher">📚 مدرس</a>
+            <a href="professor.html" class="option-btn professor">🎓 أستاذ جامعي</a>
+        </div>
+        <div class="note">
+            اختر دورك للانتقال إلى الصفحة المناسبة.
+        </div>
+    </div>
+</body>
+</html>
