@@ -1,1 +1,379 @@
-نونننن
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء مدرسة جديدة - المدرسة الإلكترونية</title>
+    <!-- استيراد Firebase SDK (الإصدار 10.8.0) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, query, orderByChild, equalTo, get, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+        // إعدادات Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYnCu8VkoOAOhnJTZBVmSGcPSeKB4vCAM",
+            authDomain: "tygggfs.firebaseapp.com",
+            databaseURL: "https://tygggfs-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "tygggfs",
+            storageBucket: "tygggfs.firebasestorage.app",
+            messagingSenderId: "532770652661",
+            appId: "1:532770652661:web:855dadb2b6bfd5f5cf60bc",
+            measurementId: "G-04LYXS03YS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const storage = getStorage(app);
+
+        // عناصر النموذج
+        const schoolNameInput = document.getElementById('schoolName');
+        const usernameInput = document.getElementById('username');
+        const schoolImageInput = document.getElementById('schoolImage');
+        const schoolTypeRadios = document.querySelectorAll('input[name="schoolType"]');
+        const createBtn = document.getElementById('createBtn');
+        const loadingDiv = document.getElementById('loading');
+        const messageDiv = document.getElementById('message');
+
+        // دالة عرض الرسائل
+        function showMessage(text, isError = true) {
+            messageDiv.textContent = text;
+            messageDiv.style.color = isError ? '#b34141' : '#0284c7';
+            messageDiv.style.backgroundColor = isError ? '#ffddda' : '#e3f2fd';
+            messageDiv.style.display = 'block';
+            messageDiv.style.padding = '15px';
+            messageDiv.style.borderRadius = '40px';
+            messageDiv.style.marginTop = '20px';
+            messageDiv.style.borderRight = isError ? '8px solid #b34141' : '8px solid #0284c7';
+        }
+
+        // دالة التحقق من اسم المستخدم
+        function validateUsername(username) {
+            // يجب أن يكون بالإنكليزي (حروف وأرقام فقط) ولا يبدأ برقم، وألا يقل عن 7 أحرف
+            const regex = /^[A-Za-z][A-Za-z0-9]{6,}$/; // أول حرف حرف، ثم 6 أحرف أو أرقام على الأقل
+            return regex.test(username);
+        }
+
+        // دالة التحقق من وجود اسم المستخدم مسبقاً
+        async function isUsernameTaken(username) {
+            const schoolsRef = ref(database, 'schools');
+            const usernameQuery = query(schoolsRef, orderByChild('username'), equalTo(username));
+            const snapshot = await get(usernameQuery);
+            return snapshot.exists();
+        }
+
+        // رفع الصورة إلى Firebase Storage
+        async function uploadImage(file) {
+            if (!file) return null;
+            const fileRef = storageRef(storage, `school_images/${Date.now()}_${file.name}`);
+            const snapshot = await uploadBytes(fileRef, file);
+            const downloadUrl = await getDownloadURL(snapshot.ref);
+            return downloadUrl;
+        }
+
+        // حدث إنشاء المدرسة
+        createBtn.addEventListener('click', async () => {
+            // جمع البيانات
+            const schoolName = schoolNameInput.value.trim();
+            const username = usernameInput.value.trim();
+            const imageFile = schoolImageInput.files[0];
+            let schoolType = '';
+            for (const radio of schoolTypeRadios) {
+                if (radio.checked) {
+                    schoolType = radio.value;
+                    break;
+                }
+            }
+
+            // التحقق من المدخلات
+            if (!schoolName) {
+                showMessage('الرجاء إدخال اسم المدرسة');
+                return;
+            }
+            if (!username) {
+                showMessage('الرجاء إدخال اسم المستخدم');
+                return;
+            }
+            if (!validateUsername(username)) {
+                showMessage('اسم المستخدم يجب أن يكون باللغة الإنجليزية، ويبدأ بحرف، وألا يقل عن 7 أحرف (أحرف وأرقام فقط)');
+                return;
+            }
+            if (!schoolType) {
+                showMessage('الرجاء اختيار نوع المدرسة');
+                return;
+            }
+
+            // تعطيل الزر وإظهار التحميل
+            createBtn.disabled = true;
+            loadingDiv.style.display = 'block';
+            messageDiv.style.display = 'none';
+
+            try {
+                // التحقق من أن اسم المستخدم غير مستخدم
+                const taken = await isUsernameTaken(username);
+                if (taken) {
+                    showMessage('اسم المستخدم موجود مسبقاً، الرجاء اختيار اسم آخر');
+                    createBtn.disabled = false;
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+
+                // رفع الصورة إذا وجدت
+                let imageUrl = null;
+                if (imageFile) {
+                    try {
+                        imageUrl = await uploadImage(imageFile);
+                    } catch (uploadErr) {
+                        console.error('خطأ في رفع الصورة:', uploadErr);
+                        showMessage('فشل رفع الصورة، الرجاء المحاولة مرة أخرى');
+                        createBtn.disabled = false;
+                        loadingDiv.style.display = 'none';
+                        return;
+                    }
+                }
+
+                // إنشاء معرف فريد للمدرسة
+                const schoolsRef = ref(database, 'schools');
+                const newSchoolRef = push(schoolsRef); // ينشئ مفتاحاً فريداً
+
+                // بيانات المدرسة
+                const schoolData = {
+                    name: schoolName,
+                    username: username,
+                    type: schoolType,
+                    imageUrl: imageUrl || '',
+                    createdAt: new Date().toISOString(),
+                    // يمكن إضافة حقول أخرى لاحقاً
+                };
+
+                // حفظ البيانات في المسار الجديد
+                await set(newSchoolRef, schoolData);
+
+                // إخفاء التحميل
+                loadingDiv.style.display = 'none';
+
+                // عرض رسالة نجاح وتحويل
+                showMessage('تم إنشاء المدرسة بنجاح! جاري التحويل...', false);
+
+                // التحويل إلى صفحة النجاح مع معرف المدرسة
+                setTimeout(() => {
+                    window.location.href = `school_created.html?id=${newSchoolRef.key}`;
+                }, 2000);
+
+            } catch (error) {
+                console.error('خطأ في إنشاء المدرسة:', error);
+                showMessage('حدث خطأ أثناء إنشاء المدرسة. الرجاء المحاولة لاحقاً.');
+                createBtn.disabled = false;
+                loadingDiv.style.display = 'none';
+            }
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #e6f7f0 0%, #c8f0e5 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            direction: rtl;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            box-shadow: 0 20px 60px rgba(20, 100, 90, 0.25);
+            padding: 50px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+        }
+        h1 {
+            color: #0b4f4a;
+            font-size: 2.2rem;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 3px solid #2a9d8f;
+            padding-bottom: 15px;
+        }
+        .welcome-message {
+            background: #d1f0ea;
+            padding: 20px 25px;
+            border-radius: 40px;
+            margin-bottom: 35px;
+            color: #065f55;
+            font-size: 1.2rem;
+            border-right: 8px solid #2a9d8f;
+            box-shadow: 0 8px 18px rgba(42, 157, 143, 0.1);
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            color: #0b4f4a;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #d0e8e4;
+            border-radius: 40px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            background: white;
+            font-family: inherit;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #2a9d8f;
+        }
+        .radio-group {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            background: #f0fcf9;
+            padding: 15px 20px;
+            border-radius: 40px;
+            border: 2px solid #d0e8e4;
+        }
+        .radio-group label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            margin: 0;
+            cursor: pointer;
+            color: #0b4f4a;
+        }
+        .radio-group input[type="radio"] {
+            width: auto;
+            accent-color: #2a9d8f;
+        }
+        .file-input {
+            border: 2px dashed #2a9d8f;
+            background: #f0fcf9;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .file-input:hover {
+            background: #e0f7f2;
+        }
+        #createBtn {
+            background: #2a9d8f;
+            color: white;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 60px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+            margin-top: 20px;
+            box-shadow: 0 10px 20px rgba(42, 157, 143, 0.3);
+        }
+        #createBtn:hover {
+            background: #1e7b6f;
+        }
+        #createBtn:disabled {
+            background: #b0d9d3;
+            cursor: not-allowed;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin: 25px 0;
+            color: #2a9d8f;
+        }
+        .spinner {
+            width: 45px;
+            height: 45px;
+            border: 5px solid #d0f0ec;
+            border-top-color: #2a9d8f;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #message {
+            display: none;
+        }
+        .note {
+            background: #fef9e6;
+            border-radius: 30px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            color: #7b6100;
+            border-right: 8px solid #ffb74d;
+            font-size: 0.95rem;
+        }
+        .note i {
+            color: #ffb74d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏫 إنشاء مدرسة جديدة</h1>
+        
+        <div class="welcome-message">
+            مرحباً بك! يرجى ملء جميع الحقول التالية بدقة. تأكد من أن البيانات صحيحة.
+        </div>
+
+        <!-- نموذج إنشاء المدرسة -->
+        <div class="form-group">
+            <label>اسم المدرسة</label>
+            <input type="text" id="schoolName" placeholder="مثال: مدرسة النور الابتدائية">
+        </div>
+
+        <div class="form-group">
+            <label>اسم المستخدم الخاص بالمدرسة</label>
+            <input type="text" id="username" placeholder="مثال: alnoor_school" dir="ltr">
+            <div class="note" style="margin-top: 10px;">
+                <i>🔤</i> يجب أن يكون باللغة الإنجليزية، يبدأ بحرف، وألا يقل عن 7 أحرف (أحرف وأرقام فقط).
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>صورة المدرسة (اختياري)</label>
+            <input type="file" id="schoolImage" accept="image/*" class="file-input">
+        </div>
+
+        <div class="form-group">
+            <label>نوع المدرسة</label>
+            <div class="radio-group">
+                <label>
+                    <input type="radio" name="schoolType" value="ابتدائية"> ابتدائية
+                </label>
+                <label>
+                    <input type="radio" name="schoolType" value="متوسطة"> متوسطة
+                </label>
+                <label>
+                    <input type="radio" name="schoolType" value="إعدادية"> إعدادية
+                </label>
+            </div>
+        </div>
+
+        <button id="createBtn">➕ إنشاء المدرسة</button>
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>جاري إنشاء المدرسة...</p>
+        </div>
+
+        <div id="message"></div>
+    </div>
+</body>
+</html>
