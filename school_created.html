@@ -7,7 +7,7 @@
     <!-- استيراد Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCYnCu8VkoOAOhnJTZBVmSGcPSeKB4vCAM",
@@ -26,6 +26,7 @@
         // الحصول على معرف المدرسة من الرابط
         const urlParams = new URLSearchParams(window.location.search);
         const schoolId = urlParams.get('id');
+        window.schoolId = schoolId; // لجعله متاحاً عالمياً
 
         // عناصر الصفحة
         const schoolImage = document.getElementById('schoolImage');
@@ -42,36 +43,28 @@
                     if (data.imageUrl) {
                         schoolImage.src = data.imageUrl;
                     } else {
-                        schoolImage.src = 'https://via.placeholder.com/50?text=🏫'; // صورة افتراضية
+                        schoolImage.src = 'https://via.placeholder.com/50?text=🏫';
                     }
                     // تعيين اسم المدرسة
                     schoolNameSpan.textContent = data.name || 'المدرسة';
-                } else {
-                    console.log('لا توجد بيانات');
                 }
-            }).catch((error) => {
-                console.error(error);
-            });
+            }).catch(console.error);
         }
 
-        // عند الضغط على الثلاث خطوط، التحويل إلى صفحة القائمة (يمكن تغيير الرابط لاحقاً)
+        // عند الضغط على الثلاث خطوط
         menuBtn.addEventListener('click', () => {
             window.location.href = `school_menu.html?id=${schoolId}`;
         });
 
-        // وظائف مؤقتة للأزرار (يمكن ربطها لاحقاً)
+        // دالة إنشاء صف (توجيه إلى صفحة إنشاء صف مع معرف المدرسة)
         window.createClass = function() {
-            alert('سيتم إنشاء صف جديد قريباً');
+            window.location.href = `create_class.html?id=${schoolId}`;
         };
-        window.scheduleLesson = function() {
-            alert('سيتم تحديد وقت الدرس قريباً');
-        };
-        window.manageClasses = function() {
-            alert('إدارة الصفوف قريباً');
-        };
-        window.promoteSupervisor = function() {
-            alert('رفع مشرف قريباً');
-        };
+
+        // دوال مؤقتة للبقية
+        window.scheduleLesson = () => alert('سيتم تحديد وقت الدرس قريباً');
+        window.manageClasses = () => alert('إدارة الصفوف قريباً');
+        window.promoteSupervisor = () => alert('رفع مشرف قريباً');
     </script>
     <style>
         * {
@@ -84,7 +77,6 @@
             background: #f4f9fc;
             direction: rtl;
         }
-        /* الشريط العلوي */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -102,10 +94,6 @@
             background: none;
             border: none;
             color: #2a9d8f;
-            transition: transform 0.2s;
-        }
-        .menu-icon:hover {
-            transform: scale(1.1);
         }
         .school-image {
             width: 50px;
@@ -114,7 +102,6 @@
             object-fit: cover;
             border: 2px solid #2a9d8f;
         }
-        /* المحتوى الرئيسي */
         .container {
             max-width: 1200px;
             margin: 30px auto;
@@ -170,16 +157,6 @@
         .btn:hover {
             background: #1e7b6f;
         }
-        .btn-outline {
-            background: transparent;
-            color: #2a9d8f;
-            border: 2px solid #2a9d8f;
-        }
-        .btn-outline:hover {
-            background: #2a9d8f;
-            color: white;
-        }
-        /* قسم إدارة الصف */
         .class-management {
             background: white;
             border-radius: 40px;
@@ -252,9 +229,6 @@
             border-radius: 40px;
             font-size: 0.9rem;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
         .control-btn:hover {
             background: #2a9d8f;
@@ -268,7 +242,6 @@
             background: #b34141;
             color: white;
         }
-        /* تذييل */
         .footer-note {
             text-align: center;
             margin: 50px 0 20px;
@@ -277,7 +250,6 @@
     </style>
 </head>
 <body>
-    <!-- الشريط العلوي -->
     <div class="top-bar">
         <button class="menu-icon" id="menuBtn">☰</button>
         <img id="schoolImage" src="https://via.placeholder.com/50?text=🏫" alt="صورة المدرسة" class="school-image">
@@ -319,8 +291,8 @@
             <h3>📚 أحدث صف: الصف الخامس - رياضيات</h3>
             <p><strong>الحضور اليوم:</strong> 12 حاضر، 3 غائب</p>
 
-            <!-- قائمة الطلاب -->
             <div class="student-list">
+                <!-- بطاقة طالب حاضر -->
                 <div class="student-card">
                     <div class="student-avatar">
                         👦
@@ -385,7 +357,7 @@
                     </select>
                     <button class="btn" style="width: auto; padding: 12px 30px;">رفع</button>
                 </div>
-                <p class="note" style="margin-top: 10px;"><i>📌</i> سيتم البحث عن الرقم في قاعدة البيانات وإضافة الصلاحيات.</p>
+                <p style="margin-top: 10px; font-size: 0.9rem;"><i>📌</i> سيتم البحث عن الرقم في قاعدة البيانات وإضافة الصلاحيات.</p>
             </div>
         </div>
 
