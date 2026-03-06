@@ -1,1 +1,6 @@
-نن
+<h2>تم إنشاء المدرسة بنجاح!</h2>
+<p>معرف المدرسة: <span id="schoolId"></span></p>
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  document.getElementById('schoolId').textContent = urlParams.get('id');
+</script>
